@@ -15,6 +15,8 @@
     "composite": true,
     "baseUrl": "./packages",
     "paths": {
+      "@opala-studios/crud-firestore": ["crud-firestore/src"],
+      "@opala-studios/crud-firestore/*": ["crud-firestore/src/*"],
       "@nestjsx/crud": ["crud/src"],
       "@nestjsx/crud-typeorm": ["crud-typeorm/src"],
       "@nestjsx/crud-request": ["crud-request/src"],
@@ -27,6 +29,7 @@
   },
   "references": [
     { "path": "crud" },
+    { "path": "crud-firestore" },
     { "path": "crud-typeorm" },
     { "path": "crud-request" },
     { "path": "util" }

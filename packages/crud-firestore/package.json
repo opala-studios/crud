@@ -1,0 +1,45 @@
+{
+    "name": "@opala-studios/crud-firestore",
+    "description": "NestJs CRUD for RESTful APIs - Firestore",
+    "version": "0.0.1",
+    "license": "MIT",
+    "main": "lib/index.js",
+    "typings": "lib/index.d.ts",
+    "publishConfig": {
+      "access": "public"
+    },
+    "files": [
+      "lib"
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/opala-studios/crud.git"
+    },
+    "bugs": {
+      "url": "https://github.com/opala-studios/crud/issues"
+    },
+    "keywords": [
+      "typescript",
+      "firestore",
+      "nest",
+      "nestjs",
+      "rest",
+      "restful",
+      "api",
+      "crud",
+      "crud-generator",
+      "backend",
+      "frameworks"
+    ],
+    "author": {
+      "name": "Felipe Antero",
+      "email": "souzantero@gmail.com"
+    },
+    "scripts": {
+      "build": "npx tsc -b"
+    },
+    "dependencies": {
+      "@zmotivat0r/o0": "^1.0.2"
+    }
+  }
+  
