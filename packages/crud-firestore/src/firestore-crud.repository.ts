@@ -13,8 +13,8 @@ export abstract class FirestoreCrudRepository<T> {
   protected readonly updatedAtField: string = 'updatedAt';
   protected readonly softDeleteField: string = 'isDeleted';
   protected idFieldName: string = 'id';
-  protected timestamp: boolean = false;
-  protected softDelete: boolean = false;
+  protected timestamp: boolean = true;
+  protected softDelete: boolean = true;
 
   constructor(
     public readonly firestore: Firestore,
@@ -28,12 +28,17 @@ export abstract class FirestoreCrudRepository<T> {
   }
 
   private onInitMapCollectionFields() {
-    const idFields = this.schema.fields.filter((field) => field.isId);
+    const idFields = this.schema.fields
+      .filter((field) => field.isId)
+      .map((field) => field.name);
     if (idFields.length > 1) {
       throw new Error('Only one field can be id per collection');
     }
 
-    this.idFieldName = idFields.map((field) => field.name)[0];
+    if (idFields.length) {
+      this.idFieldName = idFields[0];
+    }
+
     this.timestamp = this.schema.timestamp;
     this.softDelete = this.schema.softDelete;
   }
@@ -42,28 +47,40 @@ export abstract class FirestoreCrudRepository<T> {
     return { [this.idFieldName]: snapshot.id, ...snapshot.data() } as any;
   }
 
-  public async createOne(data: Record<string, any>): Promise<T> {
+  public async saveOne(data: Record<string, any>): Promise<T> {
     const doc = data[this.idFieldName]
       ? this.collection.doc(data[this.idFieldName])
       : this.collection.doc();
 
-    delete data[this.idFieldName];
+    const findedSnapshot = await doc.get();
+    const exists = findedSnapshot.exists;
 
     if (this.timestamp) {
       const now = Timestamp.fromDate(new Date());
-      data = { ...data, [this.createdAtField]: now, [this.updatedAtField]: now };
+
+      if (!exists) {
+        data = { ...data, [this.createdAtField]: now };
+      }
+
+      data = { ...data, [this.updatedAtField]: now };
     }
 
     if (this.softDelete) {
-      data = { ...data, [this.softDeleteField]: false };
+      data = {
+        ...data,
+        [this.softDeleteField]: data[this.softDeleteField]
+          ? data[this.softDeleteField]
+          : false,
+      };
     }
 
+    delete data[this.idFieldName];
     await doc.set({ ...data });
-    const snapshot = await doc.get();
-    return this.toEntity(snapshot);
+    const savedSnapshot = await doc.get();
+    return this.toEntity(savedSnapshot);
   }
 
-  public async createMany(bulk: Record<string, any>[]): Promise<T[]> {
+  public async saveMany(bulk: Record<string, any>[]): Promise<T[]> {
     const now = Timestamp.fromDate(new Date());
 
     const docs: DocumentReference<DocumentData>[] = [];
@@ -88,23 +105,5 @@ export abstract class FirestoreCrudRepository<T> {
     await batch.commit();
 
     return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
-  }
-
-  public async updateOne(data: Record<string, any>): Promise<T> {
-    if (!data[this.idFieldName]) {
-      throw new Error('Id is required to update one document');
-    }
-
-    const doc = this.collection.doc(data[this.idFieldName]);
-    delete data[this.idFieldName];
-
-    if (this.timestamp) {
-      const now = Timestamp.fromDate(new Date());
-      data = { ...data, [this.updatedAtField]: now };
-    }
-
-    await doc.update({ ...data });
-    const snapshot = await doc.get();
-    return this.toEntity(snapshot);
   }
 }

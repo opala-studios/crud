@@ -42,7 +42,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
       this.throwBadRequestException(`Empty data. Nothing to save.`);
     }
 
-    const saved = await this.repository.createOne(entity);
+    const saved = await this.repository.saveOne(entity);
 
     if (returnShallow) {
       return saved;
@@ -78,7 +78,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
       this.throwBadRequestException(`Empty data. Nothing to save.`);
     }
 
-    return await this.repository.createMany(bulk);
+    return await this.repository.saveMany(bulk);
   }
 
   async updateOne(req: CrudRequest, dto: T): Promise<T> {
@@ -99,7 +99,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
           ...req.parsed.authPersist,
         };
 
-    const updated = await this.repository.updateOne(toSave);
+    const updated = await this.repository.saveOne(toSave);
 
     if (returnShallow) {
       return updated;
@@ -112,8 +112,45 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     }
   }
 
-  replaceOne(req: CrudRequest, dto: T): Promise<T> {
-    throw new Error('Method not implemented.');
+  async replaceOne(req: CrudRequest, dto: T): Promise<T> {
+    const { allowParamsOverride, returnShallow } = req.options.routes.replaceOneBase;
+    const paramsFilters = this.getParamFilters(req.parsed);
+    const found = await this.getOneOrFail(req, returnShallow);
+
+    const toSave = !allowParamsOverride
+      ? {
+          ...(found || {}),
+          ...dto,
+          ...paramsFilters,
+          ...req.parsed.authPersist,
+        }
+      : {
+          ...(found || {}),
+          ...paramsFilters,
+          ...dto,
+          ...req.parsed.authPersist,
+        };
+
+    const replaced = await this.repository.saveOne(toSave);
+
+    if (returnShallow) {
+      return replaced;
+    } else {
+      const primaryParam = this.getPrimaryParam(req.options);
+      if (!primaryParam) {
+        return replaced;
+      } else {
+        req.parsed.paramsFilter = [
+          {
+            field: primaryParam,
+            operator: '$eq',
+            value: replaced[primaryParam],
+          },
+        ];
+
+        return this.getOneOrFail(req);
+      }
+    }
   }
 
   deleteOne(req: CrudRequest): Promise<void | T> {
