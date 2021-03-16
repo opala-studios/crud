@@ -1,6 +1,6 @@
 export interface CollectionField {
   name: string;
-  isPrimary?: boolean;
+  isId: boolean;
 }
 
 export interface FirestoreCrudSchema {
