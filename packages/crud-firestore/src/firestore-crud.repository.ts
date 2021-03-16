@@ -5,6 +5,8 @@ import {
   Timestamp,
   Firestore,
   DocumentReference,
+  Query,
+  FieldPath,
 } from '@google-cloud/firestore';
 import { FirestoreCrudOptions, FirestoreCrudSchema } from './firestore-crud.interfaces';
 
@@ -23,7 +25,7 @@ export abstract class FirestoreCrudRepository<T> {
     this.onInitMapCollectionFields();
   }
 
-  get collection(): CollectionReference<DocumentData> {
+  protected get collection(): CollectionReference<DocumentData> {
     return this.firestore.collection(this.schema.collection);
   }
 
@@ -45,6 +47,18 @@ export abstract class FirestoreCrudRepository<T> {
 
   public toEntity(snapshot: DocumentSnapshot<DocumentData>): T | Promise<T> {
     return { [this.idFieldName]: snapshot.id, ...snapshot.data() } as any;
+  }
+
+  public buildQuery(
+    withDeleted: boolean = false,
+    options?: FirestoreCrudOptions,
+  ): Query<DocumentData> | CollectionReference<DocumentData> {
+    const softDelete = options ? options.softDelete : this.softDelete;
+    if (!withDeleted && softDelete) {
+      return this.collection.where(this.softDeleteField, '==', false);
+    }
+
+    return this.collection;
   }
 
   public async saveOne(
@@ -162,5 +176,9 @@ export abstract class FirestoreCrudRepository<T> {
     await batch.commit();
 
     return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
+  }
+
+  public async find(query: Query<DocumentData>): Promise<T[]> {
+    throw new Error('Method not implemented');
   }
 }
