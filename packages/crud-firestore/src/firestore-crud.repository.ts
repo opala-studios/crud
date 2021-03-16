@@ -45,11 +45,11 @@ export abstract class FirestoreCrudRepository<T> {
     this.softDelete = this.schema.softDelete;
   }
 
-  public toEntity(snapshot: DocumentSnapshot<DocumentData>): T | Promise<T> {
+  protected toEntity(snapshot: DocumentSnapshot<DocumentData>): T {
     return { [this.idFieldName]: snapshot.id, ...snapshot.data() } as any;
   }
 
-  public buildQuery(
+  buildQuery(
     withDeleted: boolean = false,
     options?: FirestoreCrudOptions,
   ): Query<DocumentData> | CollectionReference<DocumentData> {
@@ -61,10 +61,7 @@ export abstract class FirestoreCrudRepository<T> {
     return this.collection;
   }
 
-  public async saveOne(
-    data: Record<string, any>,
-    options?: FirestoreCrudOptions,
-  ): Promise<T> {
+  async saveOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
     const doc = data[this.idFieldName]
       ? this.collection.doc(data[this.idFieldName])
       : this.collection.doc();
@@ -100,7 +97,7 @@ export abstract class FirestoreCrudRepository<T> {
     return this.toEntity(savedSnapshot);
   }
 
-  public async removeOne(id: string, options?: FirestoreCrudOptions): Promise<void> {
+  async removeOne(id: string, options?: FirestoreCrudOptions): Promise<void> {
     const doc = this.collection.doc(id);
 
     const softDelete = options ? options.softDelete : this.softDelete;
@@ -119,7 +116,7 @@ export abstract class FirestoreCrudRepository<T> {
     }
   }
 
-  public async recoverOne(id: string, options?: FirestoreCrudOptions): Promise<T> {
+  async recoverOne(id: string, options?: FirestoreCrudOptions): Promise<T> {
     const doc = this.collection.doc(id);
 
     const softDelete = options ? options.softDelete : this.softDelete;
@@ -140,7 +137,7 @@ export abstract class FirestoreCrudRepository<T> {
     return this.toEntity(snapshot);
   }
 
-  public async createMany(
+  async createMany(
     bulk: Record<string, any>[],
     options?: FirestoreCrudOptions,
   ): Promise<T[]> {
@@ -178,16 +175,18 @@ export abstract class FirestoreCrudRepository<T> {
     return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
   }
 
-  public async find(query: Query<DocumentData>): Promise<T[]> {
+  async find(query: Query<DocumentData>): Promise<T[]> {
     const snapshot = await query.get();
     if (snapshot.empty) {
       return [];
     }
 
-    return Promise.all(snapshot.docs.map(this.toEntity));
+    return snapshot.docs.map((doc) => {
+      return this.toEntity(doc);
+    });
   }
 
-  public async count(query: Query<DocumentData>): Promise<number> {
+  async count(query: Query<DocumentData>): Promise<number> {
     const snapshot = await query.get();
     return snapshot.size;
   }

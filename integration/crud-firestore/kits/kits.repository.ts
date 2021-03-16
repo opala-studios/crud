@@ -11,7 +11,5 @@ export class KitsRepository extends FirestoreCrudRepository<Kit> {
         @Inject(KIT_SCHEMA) schema: FirestoreCrudSchema
     ) {
         super(firestore, schema);
-
-        console.log(FIRESTORE, firestore);
     }
 }

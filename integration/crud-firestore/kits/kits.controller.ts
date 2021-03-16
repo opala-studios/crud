@@ -7,6 +7,16 @@ import { KitsService } from './kits.service';
 @Crud({
   model: {
     type: Kit,
+  },
+  params: {
+    id: {
+      field: 'id',
+      type: 'string',
+      primary: true,
+    },
+  },
+  query: {
+    softDelete: true
   }
 })
 @ApiTags('kits')
