@@ -78,7 +78,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
       this.throwBadRequestException(`Empty data. Nothing to save.`);
     }
 
-    return await this.repository.saveMany(bulk);
+    return await this.repository.createMany(bulk);
   }
 
   async updateOne(req: CrudRequest, dto: T): Promise<T> {
@@ -153,8 +153,17 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     }
   }
 
-  deleteOne(req: CrudRequest): Promise<void | T> {
-    throw new Error('Method not implemented.');
+  async deleteOne(req: CrudRequest): Promise<void | T> {
+    const { returnDeleted } = req.options.routes.deleteOneBase;
+    const found = await this.getOneOrFail(req, returnDeleted);
+    const toReturn = returnDeleted ? found : undefined;
+
+    const primaryParam = this.getPrimaryParam(req.options);
+    await this.repository.removeOne(found[primaryParam], {
+      softDelete: req.options.query.softDelete,
+    });
+
+    return toReturn;
   }
 
   recoverOne(req: CrudRequest): Promise<void | T> {

@@ -6,7 +6,7 @@ import {
   Firestore,
   DocumentReference,
 } from '@google-cloud/firestore';
-import { FirestoreCrudSchema } from './firestore-crud.schema';
+import { FirestoreCrudOptions, FirestoreCrudSchema } from './firestore-crud.interfaces';
 
 export abstract class FirestoreCrudRepository<T> {
   protected readonly createdAtField: string = 'createdAt';
@@ -47,7 +47,10 @@ export abstract class FirestoreCrudRepository<T> {
     return { [this.idFieldName]: snapshot.id, ...snapshot.data() } as any;
   }
 
-  public async saveOne(data: Record<string, any>): Promise<T> {
+  public async saveOne(
+    data: Record<string, any>,
+    options?: FirestoreCrudOptions,
+  ): Promise<T> {
     const doc = data[this.idFieldName]
       ? this.collection.doc(data[this.idFieldName])
       : this.collection.doc();
@@ -55,7 +58,10 @@ export abstract class FirestoreCrudRepository<T> {
     const findedSnapshot = await doc.get();
     const exists = findedSnapshot.exists;
 
-    if (this.timestamp) {
+    const softDelete = options ? options.softDelete : this.softDelete;
+    const timestamp = options ? options.timestamp : this.timestamp;
+
+    if (timestamp) {
       const now = Timestamp.fromDate(new Date());
 
       if (!exists) {
@@ -65,7 +71,7 @@ export abstract class FirestoreCrudRepository<T> {
       data = { ...data, [this.updatedAtField]: now };
     }
 
-    if (this.softDelete) {
+    if (softDelete) {
       data = {
         ...data,
         [this.softDeleteField]: data[this.softDeleteField]
@@ -80,8 +86,33 @@ export abstract class FirestoreCrudRepository<T> {
     return this.toEntity(savedSnapshot);
   }
 
-  public async saveMany(bulk: Record<string, any>[]): Promise<T[]> {
+  public async removeOne(id: string, options?: FirestoreCrudOptions): Promise<void> {
+    const doc = this.collection.doc(id);
+
+    const softDelete = options ? options.softDelete : this.softDelete;
+    const timestamp = options ? options.timestamp : this.timestamp;
+
+    if (softDelete) {
+      let data: Record<string, any> = { [this.softDeleteField]: true };
+      if (timestamp) {
+        const now = Timestamp.fromDate(new Date());
+        data = { ...data, [this.updatedAtField]: now };
+      }
+
+      await doc.set({ ...data });
+    } else {
+      await doc.delete();
+    }
+  }
+
+  public async createMany(
+    bulk: Record<string, any>[],
+    options?: FirestoreCrudOptions,
+  ): Promise<T[]> {
     const now = Timestamp.fromDate(new Date());
+
+    const softDelete = options ? options.softDelete : this.softDelete;
+    const timestamp = options ? options.timestamp : this.timestamp;
 
     const docs: DocumentReference<DocumentData>[] = [];
     const batch = this.firestore.batch();
@@ -90,12 +121,17 @@ export abstract class FirestoreCrudRepository<T> {
         ? this.collection.doc(data[this.idFieldName])
         : this.collection.doc();
 
-      if (this.timestamp) {
+      if (timestamp) {
         data = { ...data, [this.createdAtField]: now, [this.updatedAtField]: now };
       }
 
-      if (this.softDelete) {
-        data = { ...data, [this.softDeleteField]: false };
+      if (softDelete) {
+        data = {
+          ...data,
+          [this.softDeleteField]: data[this.softDeleteField]
+            ? data[this.softDeleteField]
+            : false,
+        };
       }
 
       batch.set(doc, data);
