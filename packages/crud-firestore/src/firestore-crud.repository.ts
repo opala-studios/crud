@@ -179,6 +179,11 @@ export abstract class FirestoreCrudRepository<T> {
   }
 
   public async find(query: Query<DocumentData>): Promise<T[]> {
-    throw new Error('Method not implemented');
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return [];
+    }
+
+    return Promise.all(snapshot.docs.map(this.toEntity));
   }
 }
