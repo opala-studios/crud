@@ -186,4 +186,9 @@ export abstract class FirestoreCrudRepository<T> {
 
     return Promise.all(snapshot.docs.map(this.toEntity));
   }
+
+  public async count(query: Query<DocumentData>): Promise<number> {
+    const snapshot = await query.get();
+    return snapshot.size;
+  }
 }
