@@ -65,8 +65,20 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     }
   }
 
-  createMany(req: CrudRequest, dto: CreateManyDto<any>): Promise<T[]> {
-    throw new Error('Method not implemented.');
+  async createMany(req: CrudRequest, dto: CreateManyDto<any>): Promise<T[]> {
+    if (!isObject(dto) || !isArrayFull(dto.bulk)) {
+      this.throwBadRequestException(`Empty data. Nothing to save.`);
+    }
+
+    const bulk = dto.bulk
+      .map((one) => this.prepareEntityBeforeSave(one, req.parsed))
+      .filter((d) => !isUndefined(d));
+
+    if (!hasLength(bulk)) {
+      this.throwBadRequestException(`Empty data. Nothing to save.`);
+    }
+
+    return await this.repository.createMany(bulk);
   }
 
   updateOne(req: CrudRequest, dto: T): Promise<T> {
@@ -96,7 +108,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
   protected getPrimaryParam(options: CrudRequestOptions): string {
     const primaryParams = this.getPrimaryParams(options);
     if (primaryParams && primaryParams.length > 1) {
-      this.throwBadRequestException('entity has more than one primary param defined');
+      this.throwBadRequestException('Entity has more than one primary param defined');
     }
 
     return primaryParams[0];
@@ -106,7 +118,6 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     dto: Partial<T>,
     parsed: CrudRequest['parsed'],
   ): Partial<T> {
-    /* istanbul ignore if */
     if (!isObject(dto)) {
       return undefined;
     }
@@ -119,7 +130,6 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
 
     const authPersist = isObject(parsed.authPersist) ? parsed.authPersist : {};
 
-    /* istanbul ignore if */
     if (!hasLength(objKeys(dto))) {
       return undefined;
     }

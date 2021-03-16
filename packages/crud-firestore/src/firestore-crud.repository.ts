@@ -4,6 +4,7 @@ import {
   DocumentSnapshot,
   Timestamp,
   Firestore,
+  DocumentReference,
 } from '@google-cloud/firestore';
 import { FirestoreCrudSchema } from './firestore-crud.schema';
 
@@ -29,7 +30,7 @@ export abstract class FirestoreCrudRepository<T> {
   private onInitMapCollectionFields() {
     const idFields = this.schema.fields.filter((field) => field.isId);
     if (idFields.length > 1) {
-      throw new Error('only one field can be id per collection');
+      throw new Error('Only one field can be id per collection');
     }
 
     this.idFieldName = idFields.map((field) => field.name)[0];
@@ -60,5 +61,32 @@ export abstract class FirestoreCrudRepository<T> {
     await doc.set({ ...data });
     const snapshot = await doc.get();
     return this.toEntity(snapshot);
+  }
+
+  public async createMany(bulk: Record<string, any>[]): Promise<T[]> {
+    const now = Timestamp.fromDate(new Date());
+
+    const docs: DocumentReference<DocumentData>[] = [];
+    const batch = this.firestore.batch();
+    bulk.forEach((data) => {
+      const doc = data[this.idFieldName]
+        ? this.collection.doc(data[this.idFieldName])
+        : this.collection.doc();
+
+      if (this.timestamp) {
+        data = { ...data, [this.createdAtField]: now, [this.updatedAtField]: now };
+      }
+
+      if (this.softDelete) {
+        data = { ...data, [this.softDeleteField]: false };
+      }
+
+      batch.set(doc, data);
+      docs.push(doc);
+    });
+
+    await batch.commit();
+
+    return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
   }
 }
