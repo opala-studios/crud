@@ -166,8 +166,10 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     return toReturn;
   }
 
-  recoverOne(req: CrudRequest): Promise<void | T> {
-    throw new Error('Method not implemented.');
+  async recoverOne(req: CrudRequest): Promise<void | T> {
+    const found = await this.getOneOrFail(req, true, true);
+    const primaryParam = this.getPrimaryParam(req.options);
+    return this.repository.recoverOne(found[primaryParam]);
   }
 
   protected async getOneOrFail(

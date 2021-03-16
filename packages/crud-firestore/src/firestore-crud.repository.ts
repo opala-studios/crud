@@ -32,7 +32,7 @@ export abstract class FirestoreCrudRepository<T> {
       .filter((field) => field.isId)
       .map((field) => field.name);
     if (idFields.length > 1) {
-      throw new Error('Only one field can be id per collection');
+      throw new Error(`${this.schema.collection} can be only one id`);
     }
 
     if (idFields.length) {
@@ -103,6 +103,27 @@ export abstract class FirestoreCrudRepository<T> {
     } else {
       await doc.delete();
     }
+  }
+
+  public async recoverOne(id: string, options?: FirestoreCrudOptions): Promise<T> {
+    const doc = this.collection.doc(id);
+
+    const softDelete = options ? options.softDelete : this.softDelete;
+    const timestamp = options ? options.timestamp : this.timestamp;
+
+    if (!softDelete) {
+      throw new Error(`${this.schema.collection} don't use soft delete`);
+    }
+
+    let data: Record<string, any> = { [this.softDeleteField]: false };
+    if (timestamp) {
+      const now = Timestamp.fromDate(new Date());
+      data = { [this.updatedAtField]: now };
+    }
+
+    await doc.set({ ...data });
+    const snapshot = await doc.get();
+    return this.toEntity(snapshot);
   }
 
   public async createMany(
