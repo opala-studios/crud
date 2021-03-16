@@ -81,8 +81,35 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     return await this.repository.createMany(bulk);
   }
 
-  updateOne(req: CrudRequest, dto: T): Promise<T> {
-    throw new Error('Method not implemented.');
+  async updateOne(req: CrudRequest, dto: T): Promise<T> {
+    const { allowParamsOverride, returnShallow } = req.options.routes.updateOneBase;
+    const paramsFilters = this.getParamFilters(req.parsed);
+    const found = await this.getOneOrFail(req, returnShallow);
+
+    const toSave = !allowParamsOverride
+      ? {
+          ...found,
+          ...dto,
+          ...paramsFilters,
+          ...req.parsed.authPersist,
+        }
+      : {
+          ...found,
+          ...dto,
+          ...req.parsed.authPersist,
+        };
+
+    const updated = await this.repository.updateOne(toSave);
+
+    if (returnShallow) {
+      return updated;
+    } else {
+      req.parsed.paramsFilter.forEach((filter) => {
+        filter.value = updated[filter.field];
+      });
+
+      return this.getOneOrFail(req);
+    }
   }
 
   replaceOne(req: CrudRequest, dto: T): Promise<T> {
@@ -103,6 +130,17 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     withDeleted = false,
   ): Promise<T> {
     throw new Error('Method not implemented');
+  }
+
+  protected getParamFilters(parsed: CrudRequest['parsed']): ObjectLiteral {
+    let filters = {};
+    if (hasLength(parsed.paramsFilter)) {
+      for (const filter of parsed.paramsFilter) {
+        filters[filter.field] = filter.value;
+      }
+    }
+
+    return filters;
   }
 
   protected getPrimaryParam(options: CrudRequestOptions): string {

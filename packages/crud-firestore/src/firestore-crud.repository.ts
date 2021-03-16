@@ -89,4 +89,22 @@ export abstract class FirestoreCrudRepository<T> {
 
     return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
   }
+
+  public async updateOne(data: Record<string, any>): Promise<T> {
+    if (!data[this.idFieldName]) {
+      throw new Error('Id is required to update one document');
+    }
+
+    const doc = this.collection.doc(data[this.idFieldName]);
+    delete data[this.idFieldName];
+
+    if (this.timestamp) {
+      const now = Timestamp.fromDate(new Date());
+      data = { ...data, [this.updatedAtField]: now };
+    }
+
+    await doc.update({ ...data });
+    const snapshot = await doc.get();
+    return this.toEntity(snapshot);
+  }
 }
