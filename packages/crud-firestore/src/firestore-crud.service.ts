@@ -48,8 +48,10 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     this.collectionFields = this.repository.schema.fields.map((field) => field.name);
   }
 
-  getMany(req: CrudRequest): Promise<GetManyDefaultResponse<T> | T[]> {
-    throw new Error('Method not implemented.');
+  async getMany(req: CrudRequest): Promise<GetManyDefaultResponse<T> | T[]> {
+    const { parsed, options } = req;
+    const query = await this.buildQuery(parsed, options);
+    return this.repository.find(query);
   }
 
   async getOne(req: CrudRequest): Promise<T> {
