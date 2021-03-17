@@ -53,7 +53,7 @@ export abstract class FirestoreCrudRepository<T> {
     withDeleted: boolean = false,
     options?: FirestoreCrudOptions,
   ): Query<DocumentData> | CollectionReference<DocumentData> {
-    const softDelete = options ? options.softDelete : this.softDelete;
+    const { softDelete } = this.getOptions(options);
     if (!withDeleted && softDelete) {
       return this.collection.where(this.softDeleteField, '==', false);
     }
@@ -69,8 +69,7 @@ export abstract class FirestoreCrudRepository<T> {
     const findedSnapshot = await doc.get();
     const exists = findedSnapshot.exists;
 
-    const softDelete = options ? options.softDelete : this.softDelete;
-    const timestamp = options ? options.timestamp : this.timestamp;
+    const { softDelete, timestamp } = this.getOptions(options);
 
     if (timestamp) {
       const now = Timestamp.fromDate(new Date());
@@ -100,8 +99,7 @@ export abstract class FirestoreCrudRepository<T> {
   async removeOne(id: string, options?: FirestoreCrudOptions): Promise<void> {
     const doc = this.collection.doc(id);
 
-    const softDelete = options ? options.softDelete : this.softDelete;
-    const timestamp = options ? options.timestamp : this.timestamp;
+    const { softDelete, timestamp } = this.getOptions(options);
 
     if (softDelete) {
       let data: Record<string, any> = { [this.softDeleteField]: true };
@@ -110,7 +108,7 @@ export abstract class FirestoreCrudRepository<T> {
         data = { ...data, [this.updatedAtField]: now };
       }
 
-      await doc.set({ ...data });
+      await doc.update({ ...data });
     } else {
       await doc.delete();
     }
@@ -119,8 +117,7 @@ export abstract class FirestoreCrudRepository<T> {
   async recoverOne(id: string, options?: FirestoreCrudOptions): Promise<T> {
     const doc = this.collection.doc(id);
 
-    const softDelete = options ? options.softDelete : this.softDelete;
-    const timestamp = options ? options.timestamp : this.timestamp;
+    const { softDelete, timestamp } = this.getOptions(options);
 
     if (!softDelete) {
       throw new Error(`${this.schema.collection} don't use soft delete`);
@@ -129,10 +126,10 @@ export abstract class FirestoreCrudRepository<T> {
     let data: Record<string, any> = { [this.softDeleteField]: false };
     if (timestamp) {
       const now = Timestamp.fromDate(new Date());
-      data = { [this.updatedAtField]: now };
+      data = { ...data, [this.updatedAtField]: now };
     }
 
-    await doc.set({ ...data });
+    await doc.update({ ...data });
     const snapshot = await doc.get();
     return this.toEntity(snapshot);
   }
@@ -143,8 +140,7 @@ export abstract class FirestoreCrudRepository<T> {
   ): Promise<T[]> {
     const now = Timestamp.fromDate(new Date());
 
-    const softDelete = options ? options.softDelete : this.softDelete;
-    const timestamp = options ? options.timestamp : this.timestamp;
+    const { softDelete, timestamp } = this.getOptions(options);
 
     const docs: DocumentReference<DocumentData>[] = [];
     const batch = this.firestore.batch();
@@ -189,5 +185,21 @@ export abstract class FirestoreCrudRepository<T> {
   async count(query: Query<DocumentData>): Promise<number> {
     const snapshot = await query.get();
     return snapshot.size;
+  }
+
+  private getOptions(options?: FirestoreCrudOptions): FirestoreCrudOptions {
+    const softDelete = options
+      ? options.softDelete !== undefined
+        ? options.softDelete
+        : this.softDelete
+      : this.softDelete;
+
+    const timestamp = options
+      ? options.timestamp !== undefined
+        ? options.timestamp
+        : this.timestamp
+      : this.timestamp;
+
+    return { softDelete, timestamp };
   }
 }

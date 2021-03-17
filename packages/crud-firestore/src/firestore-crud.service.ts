@@ -233,9 +233,9 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     many = true,
     withDeleted = false,
   ): Promise<Query<DocumentData>> {
-    const onlyThoseNotDeleted =
-      options.query.softDelete && parsed.includeDeleted !== 1 && !withDeleted;
-    let query = this.repository.buildQuery(onlyThoseNotDeleted);
+    const includeDeleted =
+      (options.query.softDelete && parsed.includeDeleted === 1) || withDeleted;
+    let query = this.repository.buildQuery(includeDeleted);
     query = this.getDefaultSearchCondition(query, parsed, options);
     query = this.selectFields(query, parsed, options);
 
