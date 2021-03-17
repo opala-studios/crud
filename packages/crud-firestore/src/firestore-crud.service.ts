@@ -1,9 +1,4 @@
-import {
-  CollectionReference,
-  DocumentData,
-  FieldPath,
-  Query,
-} from '@google-cloud/firestore';
+import { FieldPath } from '@google-cloud/firestore';
 import {
   CreateManyDto,
   CrudRequest,
@@ -15,7 +10,6 @@ import {
 import { ParsedRequestParams, QuerySort } from '@nestjsx/crud-request';
 
 import {
-  ClassType,
   hasLength,
   isArrayFull,
   isObject,
@@ -27,6 +21,7 @@ import {
 } from '@nestjsx/util';
 
 import { FirestoreCrudRepository } from './firestore-crud.repository';
+import { FirestoreQueryBuilder } from './firestore-query-builder.model';
 
 export abstract class FirestoreCrudService<T> extends CrudService<T> {
   protected readonly queryFilterOperatorsMap = {
@@ -50,14 +45,14 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
 
   async countMany(req: CrudRequest): Promise<Number> {
     const { parsed, options } = req;
-    const query = await this.buildQuery(parsed, options, false);
-    return this.repository.count(query);
+    const queryBuilder = await this.buildQuery(parsed, options, false);
+    return this.repository.count(queryBuilder);
   }
 
   async getMany(req: CrudRequest): Promise<GetManyDefaultResponse<T> | T[]> {
     const { parsed, options } = req;
-    const query = await this.buildQuery(parsed, options);
-    return this.repository.find(query);
+    const queryBuilder = await this.buildQuery(parsed, options);
+    return this.repository.find(queryBuilder);
   }
 
   async getOne(req: CrudRequest): Promise<T> {
@@ -210,15 +205,15 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
   ): Promise<T> {
     const { parsed, options } = req;
 
-    let query: Query<DocumentData> = shallow
+    const queryBuilder: FirestoreQueryBuilder = shallow
       ? this.repository.buildQuery(withDeleted)
       : await this.buildQuery(parsed, options, true, withDeleted);
 
     if (shallow) {
-      query = this.getDefaultSearchCondition(query, parsed, options);
+      this.getDefaultSearchCondition(queryBuilder, parsed, options);
     }
 
-    const finded = await this.repository.find(query);
+    const finded = await this.repository.find(queryBuilder);
 
     if (!finded.length) {
       this.throwNotFoundException(this.repository.schema.collection);
@@ -232,38 +227,38 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     options: CrudRequestOptions,
     many = true,
     withDeleted = false,
-  ): Promise<Query<DocumentData>> {
+  ): Promise<FirestoreQueryBuilder> {
     const includeDeleted =
       (options.query.softDelete && parsed.includeDeleted === 1) || withDeleted;
-    let query = this.repository.buildQuery(includeDeleted);
-    query = this.getDefaultSearchCondition(query, parsed, options);
-    query = this.selectFields(query, parsed, options);
+    const queryBuilder = this.repository.buildQuery(includeDeleted);
+    this.getDefaultSearchCondition(queryBuilder, parsed, options);
+    this.selectFields(queryBuilder, parsed, options);
 
     if (many) {
       const sort = this.getSort(parsed, options.query);
       Object.keys(sort).forEach((key) => {
-        query = query.orderBy(key, sort[key]);
+        queryBuilder.orderBy(key, sort[key]);
       });
 
       const take = this.getTake(parsed, options.query);
       if (take && isFinite(take)) {
-        query = query.limit(take);
+        queryBuilder.limit(take);
       }
 
       const skip = this.getSkip(parsed, take);
       if (skip && isFinite(skip)) {
-        query = query.offset(skip);
+        queryBuilder.offset(skip);
       }
     }
 
-    return query;
+    return queryBuilder;
   }
 
   protected getDefaultSearchCondition(
-    query: Query<DocumentData>,
+    queryBuilder: FirestoreQueryBuilder,
     parsed: ParsedRequestParams,
     options: CrudRequestOptions,
-  ): Query<DocumentData> | CollectionReference<DocumentData> {
+  ) {
     const filters = isArrayFull(options.query.filter)
       ? [...(options.query.filter as []), ...parsed.paramsFilter, ...parsed.filter]
       : [...parsed.paramsFilter, ...parsed.filter];
@@ -275,19 +270,17 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
       const operator = this.queryFilterOperatorsMap[filter.operator];
       const value = filter.value;
 
-      query = query.where(field, operator, value);
+      queryBuilder.where(field, operator, value);
     });
-
-    return query;
   }
 
   protected selectFields(
-    query: Query<DocumentData>,
+    queryBuilder: FirestoreQueryBuilder,
     parsed: ParsedRequestParams,
     options: CrudRequestOptions,
-  ): Query<DocumentData> {
+  ) {
     const select = this.getSelect(parsed, options.query);
-    return query.select(...select);
+    queryBuilder.select(...select);
   }
 
   protected getSelect(query: ParsedRequestParams, options: QueryOptions): string[] {

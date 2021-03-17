@@ -5,10 +5,9 @@ import {
   Timestamp,
   Firestore,
   DocumentReference,
-  Query,
-  FieldPath,
 } from '@google-cloud/firestore';
 import { FirestoreCrudOptions, FirestoreCrudSchema } from './firestore-crud.interfaces';
+import { FirestoreQueryBuilder } from './firestore-query-builder.model';
 
 export abstract class FirestoreCrudRepository<T> {
   protected readonly createdAtField: string = 'createdAt';
@@ -52,13 +51,14 @@ export abstract class FirestoreCrudRepository<T> {
   buildQuery(
     withDeleted: boolean = false,
     options?: FirestoreCrudOptions,
-  ): Query<DocumentData> | CollectionReference<DocumentData> {
+  ): FirestoreQueryBuilder {
+    const queryBuilder = new FirestoreQueryBuilder(this.firestore, this.schema);
     const { softDelete } = this.getOptions(options);
     if (!withDeleted && softDelete) {
-      return this.collection.where(this.softDeleteField, '==', false);
+      queryBuilder.where(this.softDeleteField, '==', false);
     }
 
-    return this.collection;
+    return queryBuilder;
   }
 
   async saveOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
@@ -171,8 +171,8 @@ export abstract class FirestoreCrudRepository<T> {
     return docs.map((doc) => ({ [this.idFieldName]: doc.id })) as any[];
   }
 
-  async find(query: Query<DocumentData>): Promise<T[]> {
-    const snapshot = await query.get();
+  async find(queryBuilder: FirestoreQueryBuilder): Promise<T[]> {
+    const snapshot = await queryBuilder.get();
     if (snapshot.empty) {
       return [];
     }
@@ -182,8 +182,8 @@ export abstract class FirestoreCrudRepository<T> {
     });
   }
 
-  async count(query: Query<DocumentData>): Promise<number> {
-    const snapshot = await query.get();
+  async count(queryBuilder: FirestoreQueryBuilder): Promise<number> {
+    const snapshot = await queryBuilder.get();
     return snapshot.size;
   }
 
