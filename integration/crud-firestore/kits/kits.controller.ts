@@ -14,16 +14,6 @@ import { KitsService } from './kits.service';
       type: 'string',
       primary: true,
     },
-  },
-  query: {
-    softDelete: true,
-    join: {
-      categories: {
-        alias: 'kitCategories',
-        exclude: ['description'],
-        eager: true,
-      }
-    },
   }
 })
 @ApiTags('kits')
