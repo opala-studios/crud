@@ -11,5 +11,5 @@ export interface FirestoreCrudSchema
 
 export interface FirestoreCrudField {
   name: string;
-  isId: boolean;
+  isId?: boolean;
 }
