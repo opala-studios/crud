@@ -68,7 +68,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
       this.throwBadRequestException(`Empty data. Nothing to save.`);
     }
 
-    const saved = await this.repository.saveOne(entity);
+    const saved = await this.repository.createOne(entity);
 
     if (returnShallow) {
       return saved;

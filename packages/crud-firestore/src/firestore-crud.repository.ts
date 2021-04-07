@@ -61,6 +61,28 @@ export abstract class FirestoreCrudRepository<T> {
     return queryBuilder;
   }
 
+  async createOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
+    const doc = data[this.idFieldName]
+      ? this.collection.doc(data[this.idFieldName])
+      : this.collection.doc();
+
+    const { softDelete, timestamp } = this.getOptions(options);
+
+    if (timestamp) {
+      const now = Timestamp.fromDate(new Date());
+      data = { ...data, [this.createdAtField]: now, [this.updatedAtField]: now };
+    }
+
+    if (softDelete) {
+      data = { ...data, [this.softDeleteField]: false };
+    }
+
+    delete data[this.idFieldName];
+    await doc.create({ ...data });
+    const savedSnapshot = await doc.get();
+    return this.toEntity(savedSnapshot);
+  }
+
   async saveOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
     const doc = data[this.idFieldName]
       ? this.collection.doc(data[this.idFieldName])
@@ -162,7 +184,7 @@ export abstract class FirestoreCrudRepository<T> {
         };
       }
 
-      batch.set(doc, data);
+      batch.create(doc, data);
       docs.push(doc);
     });
 
