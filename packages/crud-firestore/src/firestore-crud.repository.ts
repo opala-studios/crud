@@ -113,7 +113,7 @@ export abstract class FirestoreCrudRepository<T> {
     }
 
     delete data[this.idFieldName];
-    await doc.set({ ...data });
+    await doc.update({ ...data });
     const savedSnapshot = await doc.get();
     return this.toEntity(savedSnapshot);
   }
