@@ -259,6 +259,22 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     parsed: ParsedRequestParams,
     options: CrudRequestOptions,
   ) {
+    const search = parsed.search.$and.find(
+      (condition) => condition && Object.keys(condition).length,
+    );
+    if (search) {
+      const searchKey = Object.keys(search)[0];
+      const searchValue = search[searchKey];
+      if (typeof searchValue === 'string') {
+        queryBuilder.where(searchKey, '>=', searchValue);
+        queryBuilder.where(
+          searchKey,
+          '<',
+          searchValue.replace(/.$/, (c) => String.fromCharCode(c.charCodeAt(0) + 1)),
+        );
+      }
+    }
+
     const filters = isArrayFull(options.query.filter)
       ? [...(options.query.filter as []), ...parsed.paramsFilter, ...parsed.filter]
       : [...parsed.paramsFilter, ...parsed.filter];
