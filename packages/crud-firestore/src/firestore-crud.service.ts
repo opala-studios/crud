@@ -284,7 +284,7 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     filters.forEach((filter) => {
       const field = filter.field === primaryParam ? FieldPath.documentId() : filter.field;
       const operator = this.queryFilterOperatorsMap[filter.operator];
-      const value = filter.value;
+      const value = filter.field == primaryParam ? filter.value.toString() : filter.value;
 
       queryBuilder.where(field, operator, value);
     });
