@@ -63,7 +63,7 @@ export abstract class FirestoreCrudRepository<T> {
 
   async createOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
     const doc = data[this.idFieldName]
-      ? this.collection.doc(data[this.idFieldName])
+      ? this.collection.doc(`${data[this.idFieldName]}`)
       : this.collection.doc();
 
     const { softDelete, timestamp } = this.getOptions(options);
@@ -85,7 +85,7 @@ export abstract class FirestoreCrudRepository<T> {
 
   async saveOne(data: Record<string, any>, options?: FirestoreCrudOptions): Promise<T> {
     const doc = data[this.idFieldName]
-      ? this.collection.doc(data[this.idFieldName])
+      ? this.collection.doc(`${data[this.idFieldName]}`)
       : this.collection.doc();
 
     const findedSnapshot = await doc.get();
@@ -119,7 +119,7 @@ export abstract class FirestoreCrudRepository<T> {
   }
 
   async removeOne(id: string, options?: FirestoreCrudOptions): Promise<void> {
-    const doc = this.collection.doc(id);
+    const doc = this.collection.doc(`${id}`);
 
     const { softDelete, timestamp } = this.getOptions(options);
 
@@ -137,7 +137,7 @@ export abstract class FirestoreCrudRepository<T> {
   }
 
   async recoverOne(id: string, options?: FirestoreCrudOptions): Promise<T> {
-    const doc = this.collection.doc(id);
+    const doc = this.collection.doc(`${id}`);
 
     const { softDelete, timestamp } = this.getOptions(options);
 
@@ -168,7 +168,7 @@ export abstract class FirestoreCrudRepository<T> {
     const batch = this.firestore.batch();
     bulk.forEach((data) => {
       const doc = data[this.idFieldName]
-        ? this.collection.doc(data[this.idFieldName])
+        ? this.collection.doc(`${data[this.idFieldName]}`)
         : this.collection.doc();
 
       if (timestamp) {
