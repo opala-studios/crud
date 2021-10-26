@@ -6,7 +6,9 @@ import {
   Firestore,
   DocumentReference,
 } from '@google-cloud/firestore';
+import { plainToClass } from 'class-transformer';
 import { FirestoreCrudOptions, FirestoreCrudSchema } from './firestore-crud.interfaces';
+import { FirestoreCrudMetadata } from './firestore-crud.metadata';
 import { FirestoreQueryBuilder } from './firestore-query-builder.model';
 
 export abstract class FirestoreCrudRepository<T> {
@@ -17,15 +19,23 @@ export abstract class FirestoreCrudRepository<T> {
   protected timestamp: boolean = true;
   protected softDelete: boolean = true;
 
+  public schema: FirestoreCrudSchema;
+
   constructor(
     public readonly firestore: Firestore,
-    public readonly schema: FirestoreCrudSchema,
+    public readonly entityType: new () => T,
   ) {
+    this.onInitSchema();
     this.onInitMapCollectionFields();
   }
 
   protected get collection(): CollectionReference<DocumentData> {
     return this.firestore.collection(this.schema.collection);
+  }
+
+  private onInitSchema() {
+    this.schema = FirestoreCrudMetadata.findSchema(this.entityType);
+    this.schema.fields = FirestoreCrudMetadata.findFields(this.entityType);
   }
 
   private onInitMapCollectionFields() {
@@ -45,7 +55,17 @@ export abstract class FirestoreCrudRepository<T> {
   }
 
   protected toEntity(snapshot: DocumentSnapshot<DocumentData>): T {
-    return { [this.idFieldName]: snapshot.id, ...snapshot.data() } as any;
+    const data = snapshot.data();
+
+    data[this.idFieldName] = snapshot.id;
+
+    Object.keys(data).forEach((key) => {
+      if (data[key] instanceof Timestamp) {
+        data[key] = data[key].toDate();
+      }
+    });
+
+    return plainToClass(this.entityType, data);
   }
 
   buildQuery(

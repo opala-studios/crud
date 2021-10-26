@@ -10,6 +10,6 @@ export interface FirestoreCrudSchema
 }
 
 export interface FirestoreCrudField {
-  name: string;
+  name?: string;
   isId?: boolean;
 }

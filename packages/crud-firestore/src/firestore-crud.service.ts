@@ -35,12 +35,12 @@ export abstract class FirestoreCrudService<T> extends CrudService<T> {
     $notin: 'not-in',
   };
 
-  protected collectionFields: string[];
-
   constructor(protected readonly repository: FirestoreCrudRepository<T>) {
     super();
+  }
 
-    this.collectionFields = this.repository.schema.fields.map((field) => field.name);
+  protected get collectionFields(): string[] {
+    return this.repository.schema.fields.map((field) => field.name);
   }
 
   async countMany(req: CrudRequest): Promise<Number> {
